@@ -10,6 +10,8 @@ static ReceivePacketHandler_t gReceiveHandler;
 static SOCKET gSocket;
 static struct sockaddr_in gServerInfo;
 static HANDLE gReceiveThreadHandle;
+static uint8_t gBuffer[1024];
+static uint16_t gBufferIndex=0;
 
 static bool gConnected;
 
@@ -39,7 +41,6 @@ bool network_connect(const char* pIpAddress, uint16_t port) {
 	gConnected = gReceiveThreadHandle;
 	if (!gConnected) {
 		network_close();
-		return false;
 	}
 	return gConnected;
 }
@@ -58,11 +59,14 @@ void network_close() {
 }
 
 DWORD WINAPI receiveThread(void* data) {
-	uint8_t pBuffer[1024];
+	uint8_t tempBuffer[1024];
 	while (gConnected) {
-		int result = recvfrom(gSocket, (char*)pBuffer, sizeof(pBuffer), 0, NULL, 0);
+		int result = recvfrom(gSocket, (char*)tempBuffer, sizeof(tempBuffer), 0, NULL, 0);
+		for(uint16_t l1=0;l1<result;++l1){
+			gBuffer[gBufferIndex++&0x3FF]=tempBuffer[l1];
+		}
 		if (result > 0 && gReceiveHandler) {
-			gReceiveHandler(pBuffer, result);
+			gReceiveHandler(tempBuffer, result);
 		}
 	}
 	return 0;
